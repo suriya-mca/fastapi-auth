@@ -1,0 +1,28 @@
+from decouple import config
+
+DB_CONFIG = {
+                'connections': {
+                    # Dict format for connection
+                    'default': {
+                        "engine": "tortoise.backends.asyncpg",
+                        "credentials": {
+                            "database": config('DATABASE'),
+                            "host": config('HOST'),
+                            "password": config('PASSWORD'),
+                            "port": config('PORT'),
+                            "user": config('USERNAME'),
+                          	},
+                        'minsize': 1,
+                        'maxsize': 5,
+                        'max_queries': 500,
+                        'max_inactive_connection_lifetime': 300.0
+                    },
+                },
+                'apps': {
+                    'models': {
+                        'models': ["model.models"],
+                         # If no default_connection specified, defaults to 'default'
+                        'default_connection': 'default',
+                    }
+                }
+            }

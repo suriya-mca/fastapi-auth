@@ -1,0 +1,8 @@
+/env
+/app/__pycache__
+/app/router/auth/__pycache__
+/app/model/__pycache__
+/app/config/__pycache__
+/app/services/jwt/__pycache__
+/app/services/__pycache__
+/.env

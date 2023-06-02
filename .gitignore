@@ -3,6 +3,6 @@
 /app/router/auth/__pycache__
 /app/model/__pycache__
 /app/config/__pycache__
-/app/services/jwt/__pycache__
-/app/services/__pycache__
+/app/service/jwt/__pycache__
+/app/service/__pycache__
 /.env

@@ -1,5 +1,6 @@
 from decouple import config
 
+# database configuration 
 DB_CONFIG = {
                 'connections': {
                     # Dict format for connection

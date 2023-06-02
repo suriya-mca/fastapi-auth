@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import UJSONResponse
 
-from routers.auth import authenticate
+from router.auth import authenticate
 
 from tortoise.contrib.fastapi import register_tortoise
 from config.db import DB_CONFIG

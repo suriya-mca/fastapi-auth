@@ -36,7 +36,7 @@ async def register(userInfo: UserInfoIn_Pydantic):
 	)
 
 	# create token
-	token = signJWT(userInfo.email)
+	token = signJWT(userInfo.email, "register")
 
 	return token
 
@@ -67,13 +67,22 @@ async def login(userInfo: UserInfoIn_Pydantic):
 	# get user info using user email
 	user = await UserInfo_Pydantic.from_queryset_single(UserInfo.get(email = userInfo.email))
 
-	# verify user email and password
-	if user and Hasher.verify_password(userInfo.password, user.password) is False:
-		raise HTTPException(
-			status_code = status.HTTP_401_UNAUTHORIZED,
-			detail = "Check your credintials."
-		)
-	return "Success!"
+	# check the user is verified
+	if user.is_verified:
+
+		# verify user email and password
+		if user and Hasher.verify_password(userInfo.password, user.password) is False:
+			raise HTTPException(
+				status_code = status.HTTP_401_UNAUTHORIZED,
+				detail = "Check your credintials."
+			)
+
+		return "Success!"
+
+	raise HTTPException(
+		status_code = status.HTTP_401_UNAUTHORIZED,
+		detail = "Verify your account"
+	)
 	
 
 # get : forget password
@@ -88,7 +97,7 @@ async def forget_password(email: str):
         )
 
 	# create token
-	token = signJWT(email)
+	token = signJWT(email, "password_change")
 
 	return token
 

@@ -2,11 +2,13 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from typing_extensions import Annotated
 from fastapi.security import APIKeyCookie
 from starlette.responses import Response
+from fastapi import BackgroundTasks
 
 from model.models import UserInfo_Pydantic, UserInfoIn_Pydantic, UserInfo
 from service.jwt.jwt_handler import signJWT, decodeJWT
 from service.jwt.jwt_bearer import JWTBearer
 from service.hasher import Hasher
+from service.email import send_mail
 
 # router instance
 router = APIRouter()
@@ -19,13 +21,14 @@ cookie_sec = APIKeyCookie(name="session")
 async def get_current_user(session: str = Depends(cookie_sec)):
 
 	try:
-		decoded_token = decodeJWT(session)
-		user = decoded_token["user_id"]
+		decoded_token: str = decodeJWT(session)
+		user: str = decoded_token["user_id"]
 		return user
 	except Exception:
 		raise HTTPException(
 			status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authentication"
 		)
+
 
 # get: get user
 @router.get("/", tags=["test"])
@@ -35,7 +38,7 @@ async def get_user(username: str = Depends(get_current_user)):
 
 # post : user registration
 @router.post("/api/auth/signup", tags=["register"])
-async def register(userInfo: UserInfoIn_Pydantic):
+async def register(userInfo: UserInfoIn_Pydantic, background_tasks: BackgroundTasks):
 
 	# check if user already exists
 	if await UserInfo.get_or_none(email=userInfo.email) is not None:
@@ -44,7 +47,7 @@ async def register(userInfo: UserInfoIn_Pydantic):
 	    	detail = "User already exists"
         )
 
-	hashed_password = Hasher.get_password_hash(userInfo.password)
+	hashed_password: str = Hasher.get_password_hash(userInfo.password)
 
 	# save user
 	await UserInfo.create(
@@ -54,9 +57,12 @@ async def register(userInfo: UserInfoIn_Pydantic):
 	)
 
 	# create token
-	token = signJWT(userInfo.email, "register")
+	token: str = signJWT(userInfo.email, "register")
 
-	return token
+	# background task: send verification email
+	verify_account = background_tasks.add_task(send_mail, userInfo.email, token)
+
+	return {"message": "email has been sent"}
 
 
 # get : verify email
@@ -64,7 +70,7 @@ async def register(userInfo: UserInfoIn_Pydantic):
 async def email_verification(token: str):
 
 	# decode token
-	decoded_token = decodeJWT(token)
+	decoded_token: str = decodeJWT(token)
 
 	if decoded_token is None:
 		raise HTTPException(
@@ -96,7 +102,7 @@ async def login(response: Response, userInfo: UserInfoIn_Pydantic):
 			)
 
 		# create token
-		token = signJWT(user.email, "login")
+		token: str = signJWT(user.email, "login")
 
 		# set cookie
 		response.set_cookie("session", token)
@@ -121,7 +127,7 @@ async def forget_password(email: str):
         )
 
 	# create token
-	token = signJWT(email, "password_change")
+	token: str = signJWT(email, "password_change")
 
 	return token
 
@@ -131,14 +137,14 @@ async def forget_password(email: str):
 async def change_password(password: str, user_token: Annotated[UserInfoIn_Pydantic, Depends(JWTBearer())]):
 
 	# decode token
-	decoded_token = decodeJWT(user_token)
+	decoded_token: str = decodeJWT(user_token)
 
 	user = await UserInfo_Pydantic.from_queryset_single(UserInfo.get(email = decoded_token["user_id"]))
 
 	if Hasher.verify_password(password, user.password) is False:
 
 		# hash the new password
-		hashed_password = Hasher.get_password_hash(password)
+		hashed_password: str = Hasher.get_password_hash(password)
 
 		# filter the user and change password
 		await UserInfo.filter(email = decoded_token["user_id"]).update(password = hashed_password)

@@ -9,13 +9,9 @@ JWT_SECRET = config("SECRET")
 JWT_ALGORITHM = config("ALGORITHM")
 
 
-def token_response(token: str, type: str):
+def token_response(token: str):
 
-    if type == "login":
-        return token
-    return {
-        "access_token": token
-    }
+    return token
 
 # function used for signing the JWT string
 def signJWT(user_id: str, type: str) -> Dict[str, str]:
@@ -40,7 +36,7 @@ def signJWT(user_id: str, type: str) -> Dict[str, str]:
             }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-        return token_response(token, type)
+        return token_response(token)
     except Exception as e:
         print(e)
 

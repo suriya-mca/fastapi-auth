@@ -9,14 +9,14 @@ class Hasher():
 
     # function to verfify password
     @staticmethod
-    def verify_password(plain_password, hashed_password):
+    def verify_password(plain_password, hashed_password) -> bool:
 
         return pwd_context.verify(plain_password, hashed_password)
      
 
     # function to hash password
     @staticmethod
-    def get_password_hash(password):
+    def get_password_hash(password) -> str:
 
         return pwd_context.hash(password)
         

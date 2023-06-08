@@ -1,11 +1,8 @@
-from typing import List
 from decouple import config
-from fastapi import BackgroundTasks
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
-from pydantic import BaseModel, EmailStr
-from starlette.responses import JSONResponse
 
 
+# mail configuration
 conf = ConnectionConfig(
     MAIL_USERNAME = config('MAIL_USERNAME'),
     MAIL_PASSWORD = config('MAIL_PASSWORD'),
@@ -18,21 +15,22 @@ conf = ConnectionConfig(
 )
 
 
-async def send_mail(email: str, token: str) -> JSONResponse:
+async def send_mail(email: str, token: str):
 
-    jwt_token = token
+    jwt_token: str = token
 
     html = f"""
-        <p>Thanks for registering, Verify your mail by clicking the below email.</p>
-        <a href="http://localhost:8000/api/auth/verify/?token={jwt_token}">Click here</a> 
+        <p>Thanks for registering, Verify your mail by clicking the below link</p>
+        <a href="http://localhost:8000/api/auth/verify/?token={jwt_token}">Click here</a>
+        <p><b>Note: </b>This link will expires in 10 minutes.</p> 
     """
 
     message = MessageSchema(
-        subject="Fastapi-Mail module",
+        subject="Verify your account!",
         recipients=[email],
         body=html,
-        subtype=MessageType.html)
+        subtype=MessageType.html
+    )
 
     fm = FastMail(conf)
     await fm.send_message(message)
-    return JSONResponse(status_code=200, content={"message": "email has been sent"})

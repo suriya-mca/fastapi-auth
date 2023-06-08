@@ -1,18 +1,36 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing_extensions import Annotated
+from fastapi.security import APIKeyCookie
+from starlette.responses import Response
 
 from model.models import UserInfo_Pydantic, UserInfoIn_Pydantic, UserInfo
 from service.jwt.jwt_handler import signJWT, decodeJWT
 from service.jwt.jwt_bearer import JWTBearer
 from service.hasher import Hasher
 
+# router instance
 router = APIRouter()
 
+# cookie instance
+cookie_sec = APIKeyCookie(name="session")
 
-# test api
-@router.get("/", dependencies=[Depends(JWTBearer())], tags=["test"])
-def greet():
-	return {"message": "hello"}
+
+# helper service: get current user
+async def get_current_user(session: str = Depends(cookie_sec)):
+
+	try:
+		decoded_token = decodeJWT(session)
+		user = decoded_token["user_id"]
+		return user
+	except Exception:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authentication"
+		)
+
+# get: get user
+@router.get("/", tags=["test"])
+async def get_user(username: str = Depends(get_current_user)):
+	return {"message": username}
 
 
 # post : user registration
@@ -62,7 +80,7 @@ async def email_verification(token: str):
 
 # post : user login
 @router.post("/api/auth/signin", tags=["login"])
-async def login(userInfo: UserInfoIn_Pydantic):
+async def login(response: Response, userInfo: UserInfoIn_Pydantic):
 	
 	# get user info using user email
 	user = await UserInfo_Pydantic.from_queryset_single(UserInfo.get(email = userInfo.email))
@@ -76,6 +94,12 @@ async def login(userInfo: UserInfoIn_Pydantic):
 				status_code = status.HTTP_401_UNAUTHORIZED,
 				detail = "Check your credintials."
 			)
+
+		# create token
+		token = signJWT(user.email, "login")
+
+		# set cookie
+		response.set_cookie("session", token)
 
 		return "Success!"
 
@@ -108,12 +132,29 @@ async def change_password(password: str, user_token: Annotated[UserInfoIn_Pydant
 
 	# decode token
 	decoded_token = decodeJWT(user_token)
-	# hash the new password
-	hashed_password = Hasher.get_password_hash(password)
 
-	# filter the user and change password
-	user = await UserInfo.filter(email = decoded_token["user_id"]).update(password = hashed_password)
+	user = await UserInfo_Pydantic.from_queryset_single(UserInfo.get(email = decoded_token["user_id"]))
 
-	return "password changed"
+	if Hasher.verify_password(password, user.password) is False:
+
+		# hash the new password
+		hashed_password = Hasher.get_password_hash(password)
+
+		# filter the user and change password
+		await UserInfo.filter(email = decoded_token["user_id"]).update(password = hashed_password)
+
+		return "password changed"
+
+	raise HTTPException(
+		status_code = status.HTTP_401_UNAUTHORIZED,
+		detail = "Don't use the old password"
+	)
 
 
+# get: logout
+@router.get("/api/auth/logut", tags=["logout"])
+async def logout(response: Response):
+
+	# delete cookie
+	response.delete_cookie("session")
+	return {"message": "cookie deleted"}

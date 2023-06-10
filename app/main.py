@@ -25,12 +25,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# register router
-app.include_router(authenticate.router)
-
 # register tortoise orm
 register_tortoise(  app,
                     config=DB_CONFIG,
                     generate_schemas=False,
                     add_exception_handlers=True
                 )
+
+# register router
+app.include_router(
+    authenticate.router,
+    prefix="/api/auth"
+)

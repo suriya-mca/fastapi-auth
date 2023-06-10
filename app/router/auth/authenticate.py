@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from typing_extensions import Annotated
 from fastapi.security import APIKeyCookie
-from starlette.responses import Response
+from starlette.responses import Response, JSONResponse
 from fastapi import BackgroundTasks
 
 from model.models import UserInfo_Pydantic, UserInfoIn_Pydantic, UserInfo
@@ -15,6 +15,7 @@ router = APIRouter()
 
 # cookie instance
 cookie_sec = APIKeyCookie(name="session")
+
 
 
 # helper service: get current user
@@ -33,11 +34,12 @@ async def get_current_user(session: str = Depends(cookie_sec)):
 # get: get user
 @router.get("/", tags=["test"])
 async def get_user(username: str = Depends(get_current_user)):
+	
 	return {"message": username}
 
 
 # post : user registration
-@router.post("/api/auth/signup", tags=["register"])
+@router.post("/register", tags=["register"])
 async def register(userInfo: UserInfoIn_Pydantic, background_tasks: BackgroundTasks):
 
 	# check if user already exists
@@ -66,7 +68,7 @@ async def register(userInfo: UserInfoIn_Pydantic, background_tasks: BackgroundTa
 
 
 # get : verify email
-@router.get("/api/auth/verify/", tags=["verify"])
+@router.get("/verify/", tags=["verify"])
 async def email_verification(token: str):
 
 	# decode token
@@ -85,7 +87,7 @@ async def email_verification(token: str):
 
 
 # post : user login
-@router.post("/api/auth/signin", tags=["login"])
+@router.post("/login", tags=["login"])
 async def login(response: Response, userInfo: UserInfoIn_Pydantic):
 	
 	# get user info using user email
@@ -116,7 +118,7 @@ async def login(response: Response, userInfo: UserInfoIn_Pydantic):
 	
 
 # get : forget password
-@router.get("/api/auth/forget_password", tags=["forget password"])
+@router.get("/forget_password", tags=["forget password"])
 async def forget_password(email: str):
 
 	# check if user already exists
@@ -133,7 +135,7 @@ async def forget_password(email: str):
 
 
 # put : change password
-@router.put("/api/auth/change_password", tags=["change password"])
+@router.put("/change_password", tags=["change password"])
 async def change_password(password: str, user_token: Annotated[UserInfoIn_Pydantic, Depends(JWTBearer())]):
 
 	# decode token
@@ -158,7 +160,7 @@ async def change_password(password: str, user_token: Annotated[UserInfoIn_Pydant
 
 
 # get: logout
-@router.get("/api/auth/logut", tags=["logout"])
+@router.get("/logut", tags=["logout"])
 async def logout(response: Response):
 
 	# delete cookie

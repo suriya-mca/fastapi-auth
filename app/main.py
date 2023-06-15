@@ -1,6 +1,9 @@
+from decouple import config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette_csrf import CSRFMiddleware
 from fastapi.responses import UJSONResponse
+import re
 
 from router.auth import authenticate
 
@@ -23,6 +26,18 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+path_1 = re.compile("/api/auth/register")
+path_2 = re.compile("/api/auth/verify")
+path_3 = re.compile("/api/auth/logout")
+
+app.add_middleware( 
+    CSRFMiddleware, 
+    secret = config("SECRET"),
+    exempt_urls = [path_1 ,path_2, path_3],
+    sensitive_cookies = [authenticate.cookie_sec],
+    header_name = "x-csrftoken"
 )
 
 # register tortoise orm

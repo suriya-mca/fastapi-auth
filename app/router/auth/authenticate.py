@@ -1,8 +1,7 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Request
+from fastapi import APIRouter, HTTPException, status, Depends, Request, BackgroundTasks
 from typing_extensions import Annotated
 from fastapi.security import APIKeyCookie
-from starlette.responses import Response, JSONResponse
-from fastapi import BackgroundTasks
+from starlette.responses import Response
 
 from model.models import UserInfo_Pydantic, UserInfoIn_Pydantic, UserInfo
 from service.jwt.jwt_handler import signJWT, decodeJWT
@@ -40,7 +39,9 @@ async def get_user(username: str = Depends(get_current_user)):
 
 # post : user registration
 @router.post("/register", tags=["register"])
-async def register(userInfo: UserInfoIn_Pydantic, background_tasks: BackgroundTasks):
+async def register(	request: Request, 
+					userInfo: UserInfoIn_Pydantic, 
+					background_tasks: BackgroundTasks ):
 
 	# check if user already exists
 	if await UserInfo.get_or_none(email=userInfo.email) is not None:
@@ -50,6 +51,10 @@ async def register(userInfo: UserInfoIn_Pydantic, background_tasks: BackgroundTa
         )
 
 	hashed_password: str = Hasher.get_password_hash(userInfo.password)
+
+	# # csrf token
+	# csrf_token = CSRFToken.generate(secret="my_secret_key")
+	# print(csrf_token)
 
 	# save user
 	await UserInfo.create(
@@ -68,8 +73,8 @@ async def register(userInfo: UserInfoIn_Pydantic, background_tasks: BackgroundTa
 
 
 # get : verify email
-@router.get("/verify/", tags=["verify"])
-async def email_verification(token: str):
+@router.get("/verify", tags=["verify"])
+async def email_verification(request: Request, token: str):
 
 	# decode token
 	decoded_token: str = decodeJWT(token)
@@ -88,38 +93,52 @@ async def email_verification(token: str):
 
 # post : user login
 @router.post("/login", tags=["login"])
-async def login(response: Response, userInfo: UserInfoIn_Pydantic):
+async def login( request: Request, 
+				 response: Response, 
+				 userInfo: UserInfoIn_Pydantic ):
 	
 	# get user info using user email
-	user = await UserInfo_Pydantic.from_queryset_single(UserInfo.get(email = userInfo.email))
+	if await UserInfo.get_or_none(email = userInfo.email):
 
-	# check the user is verified
-	if user.is_verified:
+		user = await UserInfo_Pydantic.from_queryset_single(UserInfo.get(email = userInfo.email))
 
-		# verify user email and password
-		if user and Hasher.verify_password(userInfo.password, user.password) is False:
-			raise HTTPException(
-				status_code = status.HTTP_401_UNAUTHORIZED,
-				detail = "Check your credintials."
-			)
+		# check the user is verified
+		if user.is_verified:
 
-		# create token
-		token: str = signJWT(user.email, "login")
+			# verify user email and password
+			if user and Hasher.verify_password(userInfo.password, user.password) is False:
+				raise HTTPException(
+					status_code = status.HTTP_401_UNAUTHORIZED,
+					detail = "Check your password"
+				)
 
-		# set cookie
-		response.set_cookie("session", token)
+			# create token
+			token: str = signJWT(user.email, "login")
 
-		return "Success!"
+			# csrf_token = request.cookies.get("csrftoken")
+			# print(csrf_token)
+
+			# set cookie
+			response.set_cookie("session", token)
+
+			return "Success!"
+
+		raise HTTPException(
+			status_code = status.HTTP_401_UNAUTHORIZED,
+			detail = "Verify your account"
+		)
 
 	raise HTTPException(
 		status_code = status.HTTP_401_UNAUTHORIZED,
-		detail = "Verify your account"
+		detail = "Check your email-id"
 	)
 	
 
 # get : forget password
 @router.get("/forget_password", tags=["forget password"])
-async def forget_password(email: str):
+async def forget_password( request: Request, 
+						   email: str,
+						   current_user: str = Depends(get_current_user) ):
 
 	# check if user already exists
 	if await UserInfo.get_or_none(email=email) is None:
@@ -136,7 +155,9 @@ async def forget_password(email: str):
 
 # put : change password
 @router.put("/change_password", tags=["change password"])
-async def change_password(password: str, user_token: Annotated[UserInfoIn_Pydantic, Depends(JWTBearer())]):
+async def change_password(	request: Request, 
+							password: str, 
+							user_token: Annotated[UserInfoIn_Pydantic, Depends(JWTBearer())] ):
 
 	# decode token
 	decoded_token: str = decodeJWT(user_token)
@@ -161,7 +182,7 @@ async def change_password(password: str, user_token: Annotated[UserInfoIn_Pydant
 
 # get: logout
 @router.get("/logut", tags=["logout"])
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
 
 	# delete cookie
 	response.delete_cookie("session")

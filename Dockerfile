@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:3.11-slim-buster
 
 # Set the working directory in the container
 WORKDIR /app
@@ -6,6 +6,8 @@ WORKDIR /app
 ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN pip install --upgrade pip
 
 # Copy the requirements file and other files to the container
 COPY ./app /app

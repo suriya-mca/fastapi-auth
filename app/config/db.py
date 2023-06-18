@@ -1,4 +1,5 @@
 from decouple import config
+import model
 
 # database configuration 
 DB_CONFIG = {
@@ -19,10 +20,16 @@ DB_CONFIG = {
                         'max_inactive_connection_lifetime': 300.0
                     },
                 },
+                # 'apps': {
+                #     'models': {
+                #         'models': ["model.models"],
+                #          # If no default_connection specified, defaults to 'default'
+                #         'default_connection': 'default',
+                #     }
+                # }
                 'apps': {
-                    'models': {
-                        'models': ["model.models"],
-                         # If no default_connection specified, defaults to 'default'
+                    'auth': {
+                        'models': ["model.models", "aerich.models"],
                         'default_connection': 'default',
                     }
                 }

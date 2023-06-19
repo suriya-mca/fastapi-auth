@@ -15,8 +15,8 @@ DB_CONFIG = {
                             "user": config('USERNAME'),
                           	},
                         'minsize': 1,
-                        'maxsize': 5,
-                        'max_queries': 500,
+                        'maxsize': 200,
+                        'max_queries': 50000,
                         'max_inactive_connection_lifetime': 300.0
                     },
                 },

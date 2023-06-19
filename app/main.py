@@ -2,7 +2,7 @@ from decouple import config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette_csrf import CSRFMiddleware
-from fastapi.responses import UJSONResponse
+from fastapi.responses import ORJSONResponse
 import re
 
 from router.auth import authenticate
@@ -13,24 +13,32 @@ from model.models import *
 
 
 # create fast-api instance
-app = FastAPI(default_response_class=UJSONResponse)
+app = FastAPI( 
+    default_response_class = ORJSONResponse,
+    redoc_url = None, # Disable redoc
+    # docs_url=None, # Disable docs (Swagger UI)
+)
 
 # cors settings
 origins = [
     '*',
 ]
 
+# allow these methods to be used
+methods = ["GET", "POST", "PUT"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=methods,
     allow_headers=["*"],
 )
 
-path_1 = re.compile("/api/auth/register")
-path_2 = re.compile("/api/auth/verify")
-path_3 = re.compile("/api/auth/logout")
+# csrf settings
+path_1 = re.compile(config("PATH_1"))
+path_2 = re.compile(config("PATH_2"))
+path_3 = re.compile(config("PATH_3"))
 
 app.add_middleware( 
     CSRFMiddleware, 

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, Request, Backgrou
 from typing_extensions import Annotated
 from fastapi.security import APIKeyCookie
 from starlette.responses import Response
+from fastapi.responses import ORJSONResponse
 
 from model.models import UserInfo_Pydantic, UserInfoIn_Pydantic, UserInfo
 from service.jwt.jwt_handler import signJWT, decodeJWT
@@ -34,14 +35,14 @@ async def get_current_user(session: str = Depends(cookie_sec)):
 @router.get("/", tags=["test"])
 async def get_user(username: str = Depends(get_current_user)):
 	
-	return {"message": username}
+	return {"User": username}
 
 
 # post : user registration
 @router.post("/register", tags=["register"])
 async def register(	request: Request, 
 					userInfo: UserInfoIn_Pydantic, 
-					background_tasks: BackgroundTasks ):
+					background_tasks: BackgroundTasks ) -> ORJSONResponse:
 
 	# check if user already exists
 	if await UserInfo.get_or_none(email=userInfo.email) is not None:
@@ -51,10 +52,6 @@ async def register(	request: Request,
         )
 
 	hashed_password: str = Hasher.get_password_hash(userInfo.password)
-
-	# # csrf token
-	# csrf_token = CSRFToken.generate(secret="my_secret_key")
-	# print(csrf_token)
 
 	# save user
 	await UserInfo.create(
@@ -68,13 +65,13 @@ async def register(	request: Request,
 
 	# background task: send verification email
 	verify_account = background_tasks.add_task(send_mail, userInfo.email, token)
-
-	return {"message": "email has been sent"}
+	
+	return ORJSONResponse(status_code=status.HTTP_201_CREATED, content = "Email has been sent")
 
 
 # get : verify email
 @router.get("/verify", tags=["verify"])
-async def email_verification(request: Request, token: str):
+async def email_verification(request: Request, token: str) -> ORJSONResponse:
 
 	# decode token
 	decoded_token: str = decodeJWT(token)
@@ -88,14 +85,14 @@ async def email_verification(request: Request, token: str):
 	# update user model
 	await UserInfo.filter(email = decoded_token["user_id"]).update(is_verified = True)
 
-	return "Email verified"
+	return ORJSONResponse(status_code=status.HTTP_200_OK, content = "Email verified!")
 
 
 # post : user login
 @router.post("/login", tags=["login"])
 async def login( request: Request, 
 				 response: Response, 
-				 userInfo: UserInfoIn_Pydantic ):
+				 userInfo: UserInfoIn_Pydantic ) -> ORJSONResponse:
 	
 	# get user info using user email
 	if await UserInfo.get_or_none(email = userInfo.email):
@@ -130,7 +127,7 @@ async def login( request: Request,
 
 	raise HTTPException(
 		status_code = status.HTTP_401_UNAUTHORIZED,
-		detail = "Check your email-id"
+		detail = "User not exist"
 	)
 	
 
@@ -138,7 +135,7 @@ async def login( request: Request,
 @router.get("/forget_password", tags=["forget password"])
 async def forget_password( request: Request, 
 						   email: str,
-						   current_user: str = Depends(get_current_user) ):
+						   current_user: str = Depends(get_current_user) ) -> ORJSONResponse:
 
 	# check if user already exists
 	if await UserInfo.get_or_none(email=email) is None:
@@ -150,14 +147,14 @@ async def forget_password( request: Request,
 	# create token
 	token: str = signJWT(email, "password_change")
 
-	return token
+	return ORJSONResponse(status_code=status.HTTP_200_OK, content = token)
 
 
 # put : change password
 @router.put("/change_password", tags=["change password"])
 async def change_password(	request: Request, 
 							password: str, 
-							user_token: Annotated[UserInfoIn_Pydantic, Depends(JWTBearer())] ):
+							user_token: Annotated[UserInfoIn_Pydantic, Depends(JWTBearer())] ) -> ORJSONResponse:
 
 	# decode token
 	decoded_token: str = decodeJWT(user_token)
@@ -172,7 +169,7 @@ async def change_password(	request: Request,
 		# filter the user and change password
 		await UserInfo.filter(email = decoded_token["user_id"]).update(password = hashed_password)
 
-		return "password changed"
+		return ORJSONResponse(status_code=status.HTTP_200_OK, content = "Password changed")
 
 	raise HTTPException(
 		status_code = status.HTTP_401_UNAUTHORIZED,
@@ -182,8 +179,8 @@ async def change_password(	request: Request,
 
 # get: logout
 @router.get("/logut", tags=["logout"])
-async def logout(request: Request, response: Response):
+async def logout(request: Request, response: Response) -> ORJSONResponse:
 
 	# delete cookie
 	response.delete_cookie("session")
-	return {"message": "cookie deleted"}
+	return "Cookie deleted"

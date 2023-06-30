@@ -93,44 +93,44 @@ async def email_verification(request: Request, token: str) -> ORJSONResponse:
 async def login( request: Request, 
 				 response: Response, 
 				 userInfo: UserInfoIn_Pydantic ) -> ORJSONResponse:
-	
+
+	if await UserInfo.get_or_none(email = userInfo.email) is None:
+
+		raise HTTPException(
+			status_code = status.HTTP_401_UNAUTHORIZED,
+			detail = "User not exist"
+		)
+
 	# get user info using user email
-	if await UserInfo.get_or_none(email = userInfo.email):
+	user = await UserInfo_Pydantic.from_queryset_single(UserInfo.get(email = userInfo.email))
 
-		user = await UserInfo_Pydantic.from_queryset_single(UserInfo.get(email = userInfo.email))
-
-		# check the user is verified
-		if user.is_verified:
-
-			# verify user email and password
-			if user and Hasher.verify_password(userInfo.password, user.password) is False:
-				raise HTTPException(
-					status_code = status.HTTP_401_UNAUTHORIZED,
-					detail = "Check your password"
-				)
-
-			# create token
-			token: str = signJWT(user.email, "login")
-
-			# csrf_token = request.cookies.get("csrftoken")
-			# print(csrf_token)
-
-			# set cookie
-			response.set_cookie("session", token)
-
-			return "Success!"
+	# check the user is verified
+	if user.is_verified is False:
 
 		raise HTTPException(
 			status_code = status.HTTP_401_UNAUTHORIZED,
 			detail = "Verify your account"
 		)
 
-	raise HTTPException(
-		status_code = status.HTTP_401_UNAUTHORIZED,
-		detail = "User not exist"
-	)
-	
+	# verify user email and password
+	if Hasher.verify_password(userInfo.password, user.password) is False:
+		raise HTTPException(
+			status_code = status.HTTP_401_UNAUTHORIZED,
+			detail = "Check your password"
+		)
 
+	# create token
+	token: str = signJWT(user.email, "login")
+
+	# csrf_token = request.cookies.get("csrftoken")
+	# print(csrf_token)
+
+	# set cookie
+	response.set_cookie("session", token)
+
+	return "Success!"
+
+		
 # get : forget password
 @router.get("/forget_password", tags=["forget password"])
 async def forget_password( request: Request, 
